@@ -53,7 +53,11 @@ $("loginForm").addEventListener("submit", async (e) => {
   sessionStorage.setItem("uid", String(u.id));
 
   const next = params.get("next");
-  if (next) { location.href = next; return; }
+
+if (next === "index.html") {
+  window.location.assign("index.html");
+  return;
+}
 
   render();
 });
