@@ -33,6 +33,8 @@ const $ = (id) => document.getElementById(id);
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+let failedAttempts = 0;
+let blockedUntil = 0;
 
 function getSession() {
   const id = sessionStorage.getItem("uid");
@@ -41,27 +43,52 @@ function getSession() {
 
 $("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const email = $("email").value;
   const pw = $("password").value;
-  const u = USERS.find((x) => x.email === email);
 
-  if (!u || (await sha256("uw" + u.id + pw)) !== u.passwordHash) {
-    $("loginMsg").textContent = "Login failed for " + email;
+  // Check if login is blocked
+  if (Date.now() < blockedUntil) {
+    const seconds = Math.ceil((blockedUntil - Date.now()) / 1000);
+    $("loginMsg").textContent =
+      "Too many failed attempts. Try again in " + seconds + " seconds.";
     return;
   }
+
+  const u = USERS.find((x) => x.email === email);
+
+  // Check wrong password
+  if (!u || (await sha256("uw" + u.id + pw)) !== u.passwordHash) {
+    failedAttempts++;
+
+    if (failedAttempts >= 3) {
+      blockedUntil = Date.now() + 30000;
+      failedAttempts = 0;
+      $("loginMsg").textContent =
+        "Too many failed attempts. Login blocked for 30 seconds.";
+    } else {
+      $("loginMsg").textContent = "Login failed for " + email;
+    }
+
+    return;
+  }
+
+  // Reset attempts after successful login
+  failedAttempts = 0;
+  blockedUntil = 0;
+  $("loginMsg").textContent = "";
 
   sessionStorage.setItem("uid", String(u.id));
 
   const next = params.get("next");
 
-if (next === "index.html") {
-  window.location.assign("index.html");
-  return;
-}
+  if (next === "index.html") {
+    window.location.assign("index.html");
+    return;
+  }
 
   render();
 });
-
 $("resultForm").addEventListener("submit", (e) => { e.preventDefault(); showResult($("rid").value); });
 
 function showResult(id) {
